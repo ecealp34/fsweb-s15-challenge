@@ -1,7 +1,18 @@
 const router = require('express').Router();
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const { JWT_SECRET } = require('../../secrets');
+const { usernameVarMi, usernameBosMu } = require('./auth-middleware');
+const userModel = require('../users/user-model')
 
-router.post('/register', (req, res) => {
-  res.end('kayıt olmayı ekleyin, lütfen!');
+router.post('/register', usernameBosMu, async (req, res) => {
+  const { username } = req.body;
+  try {
+    const user = await userModel.insert({ username: username, password: req.hashedPassword })
+    res.status(201).json(user)
+  } catch (error) {
+    res.status(500).json({ message: error.message})
+  }
   /*
     EKLEYİN
     Uçnoktanın işlevselliğine yardımcı olmak için middlewarelar yazabilirsiniz.
@@ -29,8 +40,24 @@ router.post('/register', (req, res) => {
   */
 });
 
-router.post('/login', (req, res) => {
-  res.end('girişi ekleyin, lütfen!');
+router.post('/login', usernameVarMi, (req, res) => {
+  const { password } = req.body;
+  if(req.user && bcrypt.compareSync(password, req.user.password)) {
+    const payload = {
+      id: req.user.id,
+      username: req.user.username,
+      password: req.user.password
+    }
+
+   const options = {
+    expiresIn: '24h'
+   }
+
+   const token = jwt.sign(payload, JWT_SECRET, options)
+   res.json({ message: '${req.user.username} hoşgeldin', token: token})
+  } else {
+    res.status(401).json({ message: 'Geçersiz bilgi'})
+  }
   /*
     EKLEYİN
     Uçnoktanın işlevselliğine yardımcı olmak için middlewarelar yazabilirsiniz.
